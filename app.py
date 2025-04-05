@@ -1,6 +1,11 @@
 import streamlit as st
 import pandas as pd
-
+import os
+from dotenv import load_dotenv
+import requests
+import urllib.parse
+import random
+import string
 
 # Define global variables for column mappings
 COLUMN_MAPPINGS = {
@@ -17,13 +22,91 @@ COLUMN_MAPPINGS = {
     "zip_code": "Zip/Postal Code",
 }
 
+load_dotenv()
 
+# For OAuth2.0 authentication
+CINC_AUTH_URL = os.getenv("CINC_AUTH_URL") or st.secrets["CINC_AUTH_URL"]
+CLIENT_ID = os.getenv("CLIENT_ID") or st.secrets["CLIENT_ID"]
+CLIENT_SECRET = os.getenv("CLIENT_SECRET") or st.secrets["CLIENT_SECRET"]
+REDIRECT_URI = os.getenv("REDIRECT_URI") or st.secrets["REDIRECT_URI"]
+
+# For API requests
+CINC_API_URL = os.getenv("CINC_API_URL") or st.secrets["CINC_API_URL"]
+
+
+def generate_state():
+    """Generate a random state parameter."""
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+
+
+def get_auth_url():
+    """Generate the authorization URL for CINCPro."""
+    
+    state = generate_state()
+    st.session_state["state"] = state 
+    
+    params = {
+        'client_id': CLIENT_ID,
+        'response_type': 'code',
+        'state': state,
+        'redirect_uri': REDIRECT_URI,
+        'scope': 'api:create api:read api:update api:event', 
+    }
+
+    auth_url = f"{CINC_AUTH_URL}/authorize?{urllib.parse.urlencode(params)}"
+    
+    return auth_url
+
+
+def exchange_code_for_token(code):
+    """Exchange the authorization code for an access token."""
+    data = {
+        'grant_type': 'authorization_code',
+        'code': code, 
+        'client_id': CLIENT_ID,
+        'client_secret': CLIENT_SECRET,
+    }
+    
+    response = requests.post(f"{CINC_AUTH_URL}/token", data=data)
+    
+    if response.status_code == 200:
+        token_data = response.json()
+        access_token = token_data['access_token']
+        return access_token
+    else:
+        st.error(f"Error exchanging code for token: {response.status_code}")
+        return None
+
+
+def get_user_info(access_token):
+    """Fetch the user info using the access token."""
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Authorization": f"{access_token}"
+    }
+    
+    response = requests.get(f"{CINC_API_URL}/me", headers=headers)
+    
+    if response.status_code == 200:
+        return response.json()
+    else:
+        st.error(f"Error fetching user info: {response.status_code}")
+        return None
+
+
+def send_to_cincpro(df_cincpro, access_token):
+    """Send converted data to CINCPro CRM."""
+
+    # temporary 
+    st.info("Sending data to CINCPro...")
+    st.success("Data sent successfully!")
+    return
+    
+    
 def main():
     st.title('Real Intent to CINCPro Converter')
 
-    st.info("""
-    Upload a CSV file. The app will convert your Real Intent CSV into a format that can be imported into CINCPro.
-    """)
+    st.info("""Upload a CSV file. The app will convert your Real Intent CSV into a format that can be imported into CINCPro or will send it directly to CINCPro if authenticated.""")
 
     uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
     
@@ -39,6 +122,28 @@ def main():
     pipeline = st.text_input("(Optional) Enter a pipeline.")
     st.write("This will set the lead’s pipeline stage. Note: this will not trigger any actions.")
 
+    # Authentication section
+    if "code" in st.query_params:
+        
+        # validate the state parameter
+        if st.session_state.get("state") != st.query_params["state"]:
+            st.error("Invalid state parameter??? Could not authenticate.")
+            return
+        
+        code = st.query_params["code"]
+        access_token = exchange_code_for_token(code)
+        
+        if access_token:
+            user_info = get_user_info(access_token)
+            if user_info:
+                st.session_state["username"] = user_info["body"]['username']
+                st.session_state["authenticated"] = True
+                st.success(f"Logged in as {user_info["body"]['username']}")
+    
+    if not st.session_state.get("authenticated"):
+        st.warning("You need to authenticate to send data directly to CINCPro. You can still download the CSV to upload manually.")
+        st.markdown(f"[Authenticate with CINCPro]({get_auth_url()})")
+
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         
@@ -49,10 +154,9 @@ def main():
 
             df_cincpro = df[list(COLUMN_MAPPINGS.keys())].rename(columns=COLUMN_MAPPINGS)
             
-            # add validation columns
+            # Add validation columns
             df_cincpro["Valid Email"] = df_cincpro["Email"].apply(lambda x: "YES" if pd.notna(x) and x != '' else "")
             df_cincpro["Valid Cell Phone"] = df_cincpro[["Cell Phone", "Home Phone", "Work Phone"]].apply(lambda x: "YES" if x.notna().any() else "", axis=1)
-
 
             if 'insight' in df.columns:
                 df_cincpro['Custom Note'] = df['insight'].apply(lambda x: f"Insight: {x}")
@@ -67,20 +171,29 @@ def main():
                 df_cincpro['Pipeline'] = pipeline
 
             df_cincpro['Source'] = 'Real Intent'
-            
 
             # Display the resulting dataframe
             st.write("Converted DataFrame:")
             st.write(df_cincpro)
-            
-            # Download the converted dataframe as CSV
-            csv = df_cincpro.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="Download converted CSV",
-                data=csv,
-                file_name='converted_file.csv',
-                mime='text/csv',
-            )
+
+            # Allow the user to either download the CSV or send it directly to CINCPro
+            option = st.radio("Choose an action", ["Download CSV", "Send to CINCPro"])
+
+            if option == "Download CSV":
+                csv = df_cincpro.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="Download converted CSV",
+                    data=csv,
+                    file_name='converted_file.csv',
+                    mime='text/csv',
+                )
+                
+            elif option == "Send to CINCPro" and st.session_state.get("authenticated"):
+                send_to_cincpro(df_cincpro, access_token)
+                
+            elif option == "Send to CINCPro":
+                st.warning("Please authenticate first to send data to CINCPro.")
+                
         else:
             st.write(f"The uploaded file does not contain the required columns: {', '.join(missing_columns)}.")
 
