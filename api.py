@@ -43,6 +43,9 @@ class CINCProDeliverer():
         self.primary_agent: str | None = primary_agent
         self.listing_agent: str | None = listing_agent
         self.partner: str | None = partner
+        
+        # Keep track of failed leads
+        self.failed_leads: list[dict] = []
 
         # Configuration stuff
         self.n_threads: int = n_threads
@@ -50,7 +53,16 @@ class CINCProDeliverer():
         # Make sure API credentials are valid
         if not self._verify_api_credentials():
             raise AuthError("Invalid credentials provided for CINCPro.")
-        
+    
+    def get_failure_leads(self) -> list[dict]:
+        """
+        Get the list of failed leads.
+
+        Returns:
+            list[dict]: A list of dictionaries containing information about the failed leads.
+        """
+        return self.failed_leads    
+    
     @property
     def api_headers(self) -> dict:
         """
@@ -95,6 +107,7 @@ class CINCProDeliverer():
         with ThreadPoolExecutor(max_workers=self.n_threads) as executor:
             return list(executor.map(self._deliver_single_lead, ((row) for _, row in data.iterrows())))
 
+
     def _deliver_single_lead(self, lead: pd.Series) -> dict:
         """
         Deliver a single lead to CINCPro.
@@ -105,17 +118,27 @@ class CINCProDeliverer():
         Returns:
             dict: A response dictionary from the CINCPro API for the delivered event.
         """
-        
-        event_data = self._prepare_event_data(lead)        
-        response = self._send_event(event_data)
-        print(
-            "trace", 
-            (
-                f"Delivered lead: {lead.get("md5")}, "
-                f"response_status: {response.get('status', 'unknown')}"
+        try:
+            
+            event_data = self._prepare_event_data(lead)   
+            response = self._send_event(event_data)
+            print(
+                "trace", 
+                (
+                    f"Delivered lead: {lead.get("md5")}, "
+                    f"response_status: {response.get('status', 'unknown')}"
+                )
             )
-        )
-        return response
+            return response
+        except Exception as e:
+            self.failed_leads.append({
+                "md5": lead.get("md5"),
+                "error": str(e),
+            })
+            return {
+                "status": "failed",
+                "error": str(e),
+            }
 
     def _prepare_event_data(self, lead: pd.Series) -> dict:
         """

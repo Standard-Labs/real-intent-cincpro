@@ -114,13 +114,23 @@ def main():
                     df = df.replace({float('nan'): None}) # Replace nan for easier parsing
                     
                     if st.button("Deliver Data to CINCPro"):
-                        deliverer.deliver(df)
-                        
+                        with st.spinner("Delivering leads..."):
+                            deliverer.deliver(df)
+                            failed_leads = deliverer.get_failure_leads()                     
+
+                            if failed_leads:
+                                for failed in failed_leads:
+                                    st.error(f"{failed['md5']}: {failed['error']}")
+                            
+                            if failed_leads:
+                                st.warning("Some leads failed to deliver. Please check the warnings above.")
+                            else:
+                                st.success("All leads delivered successfully!")
                 except AuthError as e:
                     reset_session()
                     st.warning(f"{e}")
                 except Exception as e:
-                    st.warning(e)
+                    st.error(e)
                     
                 
             elif option == "Send to CINCPro":
