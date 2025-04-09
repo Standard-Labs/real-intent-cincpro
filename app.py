@@ -25,6 +25,22 @@ def main():
 
     st.info("""Upload a CSV file. The app will convert your Real Intent CSV into a format that can be imported into CINCPro or will send it directly to CINCPro if authenticated.""")
 
+    # -- Authentication --
+    
+    if "code" in st.query_params and "state" in st.query_params: 
+        try:
+            authenticate(st.query_params["code"], st.query_params["state"])      
+            st.query_params.clear()   
+        except AuthError as e:
+            st.warning(f"Authentication Error: {e.message}") 
+        except Exception as e:
+            st.error(f"Unexpected Error: {e}")
+            
+    if not st.session_state.get("authenticated"):
+        st.markdown(f"[Authenticate with CINCPro]({get_auth_url()})")
+    else:
+        st.success("You are authenticated with CINCPro.")
+
     uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
     
     # -- Optional fields for CSV and API Delivery --
@@ -43,23 +59,7 @@ def main():
         st.write("These tags will be added to the lead in CINCPro. You can add multiple tags separated by commas.")
         tags = [tag.strip() for tag in tags_input.split(",")] if tags_input else None
         add_zip_tags = st.checkbox("Add Zip Tags", value=True)
-        
-    # -- Authentication --
-    
-    if "code" in st.query_params and "state" in st.query_params: 
-        try:
-            authenticate(st.query_params["code"], st.query_params["state"])      
-            st.query_params.clear()   
-        except AuthError as e:
-            st.warning(f"Authentication Error: {e.message}") 
-        except Exception as e:
-            st.error(f"Unexpected Error: {e}")
-            
-    if not st.session_state.get("authenticated"):
-        st.markdown(f"[Authenticate with CINCPro]({get_auth_url()})")
-    else:
-        st.success("You are authenticated with CINCPro.")
-        
+                
     # -- File Upload and Processing --
     
     if uploaded_file is not None:
