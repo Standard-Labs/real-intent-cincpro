@@ -119,7 +119,7 @@ def main():
                             primary_agent=agent_assigned,
                             listing_agent=listing_agent,
                             partner=partner,
-                            n_threads=1,
+                            n_threads=5,
                         )
                     
                         deliver_df = df.replace({float('nan'): None}, inplace=False)
