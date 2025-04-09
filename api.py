@@ -202,7 +202,7 @@ class CINCProDeliverer():
 
         if (insight):
             notes.append({
-                "id": md5,
+                # "id": md5, was working before??
                 "content": f"Real Intent's Actionable Insight: {insight}",
                 "category": "info",
                 "created_by": "Real Intent",
