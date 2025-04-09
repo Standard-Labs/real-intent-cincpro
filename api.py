@@ -4,7 +4,6 @@ import datetime
 import pandas as pd
 from typing import Any
 
-
 from config import CINC_API_URL
 from utils import rate_limited, AuthError
 
@@ -52,7 +51,7 @@ class CINCProDeliverer():
 
         # Make sure API credentials are valid
         if not self._verify_api_credentials():
-            raise AuthError("Invalid credentials provided for CINCPro.")
+            raise AuthError("Could not verify credentials for CincPro delivery. Please re-authenticate.")
     
     def get_failure_leads(self) -> list[dict]:
         """
@@ -92,7 +91,6 @@ class CINCProDeliverer():
 
         return response.ok
     
-
     def deliver(self, data: pd.DataFrame) -> list[dict]:
         """
         Deliver the PII data to CINCPro.
@@ -107,7 +105,6 @@ class CINCProDeliverer():
         with ThreadPoolExecutor(max_workers=self.n_threads) as executor:
             return list(executor.map(self._deliver_single_lead, ((row) for _, row in data.iterrows())))
 
-
     def _deliver_single_lead(self, lead: pd.Series) -> dict:
         """
         Deliver a single lead to CINCPro.
@@ -119,7 +116,7 @@ class CINCProDeliverer():
             dict: A response dictionary from the CINCPro API for the delivered event.
         """
         try:
-            
+
             event_data = self._prepare_event_data(lead)   
             response = self._send_event(event_data)
             print(

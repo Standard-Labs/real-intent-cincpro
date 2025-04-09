@@ -82,19 +82,16 @@ def refresh_token(refresh_token):
 def authenticate(code, state):
     try:
         if st.session_state.get("state") != state:
-            st.error("Invalid state parameter. Could not authenticate.")
             reset_session()
-            return
+            raise AuthError("Invalid state parameter.")
 
         exchange_code_for_token(code)
 
         st.session_state["authenticated"] = True
     
     except AuthError as e:
-        st.error(f"Authentication error: {e.message}")
-        reset_session()
-
+        raise e
     except Exception as e:
-        st.error(f"Unexpected authentication error: {e}")
         reset_session()
+        raise Exception(f"Unexpected authentication error: {e}")
 

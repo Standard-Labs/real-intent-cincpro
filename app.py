@@ -27,34 +27,41 @@ def main():
 
     uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
     
-    agent_assigned = st.text_input("(Optional) Enter an assigned agent.")
-    st.write("This will assign the lead to the selected agent.")
+    # -- Optional fields for CSV and API Delivery --
     
-    listing_agent = st.text_input("(Optional) Enter a listing agent.")
-    st.write("This will assign the lead to the selected listing agent.")
+    with st.expander("Agent and Partner Assignment"):
+        agent_assigned = st.text_input("(Optional) Enter an assigned agent.")
+        listing_agent = st.text_input("(Optional) Enter a listing agent.")
+        partner = st.text_input("(Optional) Enter a partner.")
 
-    partner = st.text_input("(Optional) Enter a partner.")
-    st.write("This will assign the lead to the selected partner.")
-    
-    pipeline = st.text_input("(Optional) Enter a pipeline.")
-    st.write("This will set the lead’s pipeline stage. Note: this will not trigger any actions.")
-    
-    tags_input = st.text_input("(Optional) Enter tag(s):", "")
-    st.write("These tags will be added to the lead in CINCPro. You can add multiple tags separated by commas.") 
-    
-    tags = [tag.strip() for tag in tags_input.split(",")] if tags_input else None
+    with st.expander("Pipeline (CSV only)"):
+        pipeline = st.text_input("(Optional) Enter a pipeline.")
+        st.write("This will set the lead’s pipeline stage. Note: this will not trigger any actions.")
 
-    add_zip_tags = st.checkbox("Add Zip Tags?", value=True) 
-
+    with st.expander("Tags (API only)"):
+        tags_input = st.text_input("(Optional) Enter tag(s):", "")
+        st.write("These tags will be added to the lead in CINCPro. You can add multiple tags separated by commas.")
+        tags = [tag.strip() for tag in tags_input.split(",")] if tags_input else None
+        add_zip_tags = st.checkbox("Add Zip Tags", value=True)
+        
+    # -- Authentication --
+    
     if "code" in st.query_params and "state" in st.query_params: 
-        authenticate(st.query_params["state"], st.query_params["code"])      
-        st.query_params.clear()   
-                            
+        try:
+            authenticate(st.query_params["state"], st.query_params["code"])      
+            st.query_params.clear()   
+        except AuthError as e:
+            st.warning(f"Authentication Error: {e.message}") 
+        except Exception as e:
+            st.error(f"Unexpected Error: {e}")
+            
     if not st.session_state.get("authenticated"):
         st.markdown(f"[Authenticate with CINCPro]({get_auth_url()})")
     else:
         st.success("You are authenticated with CINCPro.")
         
+    # -- File Upload and Processing --
+    
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         
@@ -89,6 +96,8 @@ def main():
 
             # Allow the user to either download the CSV or send it directly to CINCPro
             option = st.radio("Choose an action", ["Download CSV", "Send to CINCPro"])
+            
+            # -- Download CSV --
 
             if option == "Download CSV":
                 csv = df_cincpro.to_csv(index=False).encode('utf-8')
@@ -99,40 +108,42 @@ def main():
                     mime='text/csv',
                 )
                 
+            # -- Send to CINCPro --
+            
             elif option == "Send to CINCPro" and st.session_state.get("authenticated"):
                 try:                    
-                    deliverer = CINCProDeliverer(
-                        access_token=st.session_state["access_token"],
-                        tags=tags,
-                        add_zip_tags=add_zip_tags,
-                        primary_agent=agent_assigned,
-                        listing_agent=listing_agent,
-                        partner=partner,
-                        n_threads=1,
-                    )
-                    
-                    df = df.replace({float('nan'): None}) # Replace nan for easier parsing
-                    
                     if st.button("Deliver Data to CINCPro"):
+                        deliverer = CINCProDeliverer(
+                            access_token=st.session_state["access_token"],
+                            tags=tags,
+                            add_zip_tags=add_zip_tags,
+                            primary_agent=agent_assigned,
+                            listing_agent=listing_agent,
+                            partner=partner,
+                            n_threads=1,
+                        )
+                    
+                        deliver_df = df.replace({float('nan'): None}, inplace=False)
+                        
                         with st.spinner("Delivering leads..."):
-                            deliverer.deliver(df)
+                            deliverer.deliver(deliver_df)
                             failed_leads = deliverer.get_failure_leads()                     
 
                             if failed_leads:
-                                for failed in failed_leads:
-                                    st.error(f"{failed['md5']}: {failed['error']}")
-                            
-                            if failed_leads:
-                                st.warning("Some leads failed to deliver. Please check the warnings above.")
+                                st.error(f"{len(failed_leads)} leads failed to deliver.")
+                                
+                                with st.expander("Click to see failed lead details"):
+                                    for failed in failed_leads:
+                                        st.error(f"{failed['md5']}: {failed['error']}")  
                             else:
                                 st.success("All leads delivered successfully!")
+                                
                 except AuthError as e:
                     reset_session()
                     st.warning(f"{e}")
                 except Exception as e:
                     st.error(e)
                     
-                
             elif option == "Send to CINCPro":
                 st.warning("Please authenticate first to send data to CINCPro.")
                 
