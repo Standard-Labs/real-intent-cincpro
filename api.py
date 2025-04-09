@@ -203,10 +203,11 @@ class CINCProDeliverer():
         if (insight):
             notes.append({
                 "id": md5,
-                "content": insight,
+                "content": f"Real Intent's Actionable Insight: {insight}",
                 "category": "info",
                 "created_by": "Real Intent",
                 "created_date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "is_pinned": True,
             })  
             
         # Add tags as labels
