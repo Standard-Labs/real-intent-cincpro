@@ -4,7 +4,7 @@ import random
 import string
 import streamlit as st
 
-from config import CLIENT_ID, CLIENT_SECRET, CINC_AUTH_URL, REDIRECT_URI
+from config import CLIENT_ID, CLIENT_SECRET, CINC_AUTH_URL, REDIRECT_URI, CLIENT_DOMAIN
 from utils import AuthError
 
 def reset_session():
@@ -29,6 +29,7 @@ def get_auth_url():
         'state': state,
         'redirect_uri': REDIRECT_URI,
         'scope': 'api:create api:read api:update api:event',
+        'domain': CLIENT_DOMAIN,
     }
 
     return f"{CINC_AUTH_URL}/authorize?{urllib.parse.urlencode(params)}"
@@ -41,7 +42,9 @@ def exchange_code_for_token(code):
         'code': code,
         'client_id': CLIENT_ID,
         'client_secret': CLIENT_SECRET,
+        'redirect_uri': REDIRECT_URI,
     }
+        
 
     response = requests.post(f"{CINC_AUTH_URL}/token", data=data)
     response.raise_for_status()
@@ -57,16 +60,25 @@ def exchange_code_for_token(code):
     st.session_state["refresh_token"] = refresh_token
 
 
-def refresh_token(refresh_token):
+def refresh_token():
+    
+    if "refresh_token" not in st.session_state:
+        reset_session()
+        raise AuthError("Failed to refresh; No refresh token found.")
+
+    
     data = {
         'grant_type': 'refresh_token',
-        'refresh_token': refresh_token,
+        'refresh_token': st.session_state["refresh_token"],
         'client_id': CLIENT_ID,
         'client_secret': CLIENT_SECRET,
     }
 
     response = requests.post(f"{CINC_AUTH_URL}/token", data=data)
-    response.raise_for_status()
+    
+    if not response.ok:
+        reset_session()
+        raise AuthError("Failed to refresh token.")
     
     new_access_token = response.json().get("access_token", None)
     new_refresh_token = response.json().get("refresh_token", None)

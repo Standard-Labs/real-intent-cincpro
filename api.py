@@ -6,6 +6,7 @@ from typing import Any
 
 from config import CINC_API_URL
 from utils import rate_limited, AuthError
+from auth import refresh_token
 
 class CINCProDeliverer():
     """Delivers data to CINCPro CRM."""
@@ -78,7 +79,7 @@ class CINCProDeliverer():
     @rate_limited()
     def _verify_api_credentials(self) -> bool:
         """
-        Verify that the API credentials are valid.
+        Verify that the API credentials are valid. Refresh the token if necessary.
 
         Returns:
             bool: True if the credentials are valid, False otherwise.
@@ -88,8 +89,18 @@ class CINCProDeliverer():
             f"{self.base_url}/me",
             headers=self.api_headers
         )
-
-        return response.ok
+        
+        if response.status_code == 401:
+            refresh_token()
+            response = requests.get(
+                f"{self.base_url}/me",
+                headers=self.api_headers
+            )
+            return response.ok
+        elif response.ok:
+            return True
+        else:
+            return False
     
     def deliver(self, data: pd.DataFrame) -> list[dict]:
         """
@@ -251,7 +262,7 @@ class CINCProDeliverer():
         )
 
         response = requests.post(
-            f"{self.base_url}", 
+            f"{self.base_url}/leads", 
             json=event_data, 
             headers=self.api_headers
         )
