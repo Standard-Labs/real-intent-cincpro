@@ -91,7 +91,7 @@ class CINCProDeliverer():
         )
         
         if response.status_code == 401:
-            refresh_token()
+            self.access_token = refresh_token()
             response = requests.get(
                 f"{self.base_url}/me",
                 headers=self.api_headers

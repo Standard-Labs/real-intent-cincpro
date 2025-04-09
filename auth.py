@@ -60,7 +60,7 @@ def exchange_code_for_token(code):
     st.session_state["refresh_token"] = refresh_token
 
 
-def refresh_token():
+def refresh_token() -> str:
     
     if "refresh_token" not in st.session_state:
         reset_session()
@@ -89,6 +89,8 @@ def refresh_token():
     
     st.session_state["access_token"] = new_access_token
     st.session_state["refresh_token"] = new_refresh_token if new_refresh_token else st.session_state["refresh_token"] # update refresh only if it is returned
+    
+    return new_access_token
     
 
 def authenticate(code, state):
