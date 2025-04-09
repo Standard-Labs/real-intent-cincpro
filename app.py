@@ -48,7 +48,7 @@ def main():
     
     if "code" in st.query_params and "state" in st.query_params: 
         try:
-            authenticate(st.query_params["state"], st.query_params["code"])      
+            authenticate(st.query_params["code"], st.query_params["state"])      
             st.query_params.clear()   
         except AuthError as e:
             st.warning(f"Authentication Error: {e.message}") 
