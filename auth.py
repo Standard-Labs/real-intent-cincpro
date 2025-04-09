@@ -4,7 +4,7 @@ import random
 import string
 import streamlit as st
 
-from config import CLIENT_ID, CLIENT_SECRET, CINC_AUTH_URL, REDIRECT_URI, CLIENT_DOMAIN
+from config import CLIENT_ID, CLIENT_SECRET, CINC_AUTH_URL, REDIRECT_URI
 from utils import AuthError
 
 def reset_session():
@@ -29,7 +29,6 @@ def get_auth_url():
         'state': state,
         'redirect_uri': REDIRECT_URI,
         'scope': 'api:create api:read api:update api:event',
-        'domain': CLIENT_DOMAIN,
     }
 
     return f"{CINC_AUTH_URL}/authorize?{urllib.parse.urlencode(params)}"
