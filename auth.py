@@ -75,7 +75,7 @@ def refresh_token():
     }
 
     response = requests.post(f"{CINC_AUTH_URL}/token", data=data)
-    
+        
     if not response.ok:
         reset_session()
         raise AuthError("Failed to refresh token.")
@@ -83,12 +83,12 @@ def refresh_token():
     new_access_token = response.json().get("access_token", None)
     new_refresh_token = response.json().get("refresh_token", None)
     
-    if not new_access_token or not new_refresh_token:
+    if not new_access_token:
         reset_session()
-        raise AuthError("Access or Refresh token not found in refresh response.")
+        raise AuthError("Access token not found in refresh response.")
     
     st.session_state["access_token"] = new_access_token
-    st.session_state["refresh_token"] = new_refresh_token
+    st.session_state["refresh_token"] = new_refresh_token if new_refresh_token else st.session_state["refresh_token"] # update refresh only if it is returned
     
 
 def authenticate(code, state):
