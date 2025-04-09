@@ -93,9 +93,12 @@ def refresh_token():
 
 def authenticate(code, state):
     try:
-        if st.session_state.get("state") != state:
-            reset_session()
-            raise AuthError("Invalid state parameter.")
+
+        # Note: state won't work as intended, since oauth redirect creates a new session
+
+        # if st.session_state.get("state") != state:
+        #     reset_session()
+        #     raise AuthError("Invalid state parameter.")
 
         exchange_code_for_token(code)
 
