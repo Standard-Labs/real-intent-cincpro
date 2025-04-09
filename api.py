@@ -202,6 +202,7 @@ class CINCProDeliverer():
 
         if (insight):
             notes.append({
+                "id": md5,
                 "content": insight,
                 "category": "info",
                 "created_by": "Real Intent",
@@ -216,7 +217,6 @@ class CINCProDeliverer():
             
         # Prepare event data according to CINC API schema
         event_data: dict[str, Any] = {
-            "id": md5,
             "registered_date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),            
             "info":{
                 "status": "unworked",
