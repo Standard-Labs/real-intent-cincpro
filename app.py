@@ -76,7 +76,7 @@ def main():
             df_cincpro["Valid Cell Phone"] = df_cincpro[["Cell Phone", "Home Phone", "Work Phone"]].apply(lambda x: "YES" if x.notna().any() else "", axis=1)
 
             if 'insight' in df.columns:
-                df_cincpro['Custom Note'] = df['insight'].apply(lambda x: f"Insight: {x}")
+                df_cincpro['Insight'] = df['insight'].apply(lambda x: f"{x}")
                 
             if agent_assigned:
                 df_cincpro['Agent Assigned'] = agent_assigned
