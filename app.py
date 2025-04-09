@@ -73,7 +73,6 @@ def main():
             df_cincpro = df[list(COLUMN_MAPPINGS.keys())].rename(columns=COLUMN_MAPPINGS)
             
             # Add validation columns
-            df_cincpro["Valid Email"] = df_cincpro["Email"].apply(lambda x: "YES" if pd.notna(x) and x != '' else "")
             df_cincpro["Valid Cell Phone"] = df_cincpro[["Cell Phone", "Home Phone", "Work Phone"]].apply(lambda x: "YES" if x.notna().any() else "", axis=1)
 
             if 'insight' in df.columns:
