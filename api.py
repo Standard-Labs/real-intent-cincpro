@@ -8,8 +8,8 @@ from config import CINC_API_URL
 from utils import rate_limited, AuthError
 from auth import refresh_token
 
-class CINCProDeliverer():
-    """Delivers data to CINCPro CRM."""
+class CINCDeliverer():
+    """Delivers data to CINC CRM."""
 
     def __init__(
             self, 
@@ -23,16 +23,16 @@ class CINCProDeliverer():
             n_threads: int = 1,
         ):
         """
-        Initialize the CINCProDeliverer.
+        Initialize the CINCDeliverer.
 
         Args:
-            access_token (str): The user's access token for CincPro.
+            access_token (str): The user's access token for CINC.
             tags (list[str], optional): A list of tags to be added to the lead. Defaults to None.
             add_zip_tags (bool, optional): Whether to add zip code tags. Defaults to True.
             primary_agent (str, optional): The primary agent to be assigned to the lead. Defaults to None.
             listing_agent (str, optional): The listing agent to be assigned to the lead. Defaults to None.
             partner (str, optional): The partner to be assigned to the lead. Defaults to None.
-            base_url (str, optional): The base URL for the CincPro API. Defaults to CINC_API_URL.
+            base_url (str, optional): The base URL for the CINC API. Defaults to CINC_API_URL.
             n_threads (int, optional): The number of threads to use for delivering leads. Defaults to 1.
         """
         
@@ -52,7 +52,7 @@ class CINCProDeliverer():
 
         # Make sure API credentials are valid
         if not self._verify_api_credentials():
-            raise AuthError("Could not verify credentials for CincPro delivery. Please re-authenticate.")
+            raise AuthError("Could not verify credentials for CINC delivery. Please re-authenticate.")
     
     def get_failure_leads(self) -> list[dict]:
         """
@@ -66,7 +66,7 @@ class CINCProDeliverer():
     @property
     def api_headers(self) -> dict:
         """
-        Generate the API headers for CINCPro requests.
+        Generate the API headers for CINC requests.
 
         Returns:
             dict: A dictionary containing the necessary headers for API requests.
@@ -104,13 +104,13 @@ class CINCProDeliverer():
     
     def deliver(self, data: pd.DataFrame) -> list[dict]:
         """
-        Deliver the PII data to CINCPro.
+        Deliver the PII data to CINC.
 
         Args:
             pii_md5s (list[MD5WithPII]): A list of MD5WithPII objects containing the PII data to be delivered.
 
         Returns:
-            list[dict]: A list of response dictionaries from the CINCPro API for each delivered event.
+            list[dict]: A list of response dictionaries from the CINC API for each delivered event.
         """
         
         with ThreadPoolExecutor(max_workers=self.n_threads) as executor:
@@ -118,13 +118,13 @@ class CINCProDeliverer():
 
     def _deliver_single_lead(self, lead: pd.Series) -> dict:
         """
-        Deliver a single lead to CINCPro.
+        Deliver a single lead to CINC.
 
         Args:
             lead (pd.Series): A single row of the dataframe containing the PII data.
 
         Returns:
-            dict: A response dictionary from the CINCPro API for the delivered event.
+            dict: A response dictionary from the CINC API for the delivered event.
         """
         try:
 
@@ -156,7 +156,7 @@ class CINCProDeliverer():
             lead (pd.Series): A single row of the dataframe containing the PII data.
 
         Returns:
-            dict: A dictionary containing the prepared event data for the CINCPro API.
+            dict: A dictionary containing the prepared event data for the CINC API.
         """
                 
         # get all the required info
@@ -243,13 +243,13 @@ class CINCProDeliverer():
     @rate_limited()
     def _send_event(self, event_data: dict) -> dict:
         """
-        Send an event to the CINCPro API.
+        Send an event to the CINC API.
 
         Args:
             event_data (dict): The prepared event data to be sent to the API.
 
         Returns:
-            dict: The response from the CINCPro API, either the JSON response or an ignored status message.
+            dict: The response from the CINC API, either the JSON response or an ignored status message.
 
         Raises:
             requests.exceptions.HTTPError: If the API request fails.
@@ -257,7 +257,7 @@ class CINCProDeliverer():
         print(
             "trace", 
             (
-                f"Sending event to CINCPro API, "
+                f"Sending event to CINC API, "
                 f"person: {event_data}"
             )
         )

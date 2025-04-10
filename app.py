@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from auth import authenticate, get_auth_url, reset_session
-from api import CINCProDeliverer
+from api import CINCDeliverer
 from utils import AuthError
 
 # Define global variables for column mappings
@@ -21,9 +21,9 @@ COLUMN_MAPPINGS = {
 
     
 def main():
-    st.title('Real Intent to CINCPro Converter')
+    st.title('Real Intent to CINC Converter')
 
-    st.info("""Upload a CSV file. The app will convert your Real Intent CSV into a format that can be imported into CINCPro or will send it directly to CINCPro if authenticated.""")
+    st.info("""Upload a CSV file. The app will convert your Real Intent CSV into a format that can be imported into CINC or will send it directly to CINC if authenticated.""")
 
     # -- Authentication --
     
@@ -37,9 +37,9 @@ def main():
             st.error(f"Unexpected Error: {e}")
             
     if not st.session_state.get("authenticated"):
-        st.markdown(f"[Authenticate with CINCPro]({get_auth_url()})")
+        st.markdown(f"[Authenticate with CINC]({get_auth_url()})")
     else:
-        st.success("You are authenticated with CINCPro.")
+        st.success("You are authenticated with CINC.")
 
     uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
     
@@ -56,7 +56,7 @@ def main():
 
     with st.expander("Tags (API only)"):
         tags_input = st.text_input("(Optional) Enter tag(s):", "")
-        st.write("These tags will be added to the lead in CINCPro. You can add multiple tags separated by commas.")
+        st.write("These tags will be added to the lead in CINC. You can add multiple tags separated by commas.")
         tags = [tag.strip() for tag in tags_input.split(",")] if tags_input else None
         add_zip_tags = st.checkbox("Add Zip Tags", value=True)
                 
@@ -93,8 +93,8 @@ def main():
             st.write("Converted DataFrame:")
             st.write(df_cincpro)
 
-            # Allow the user to either download the CSV or send it directly to CINCPro
-            option = st.radio("Choose an action", ["Download CSV", "Send to CINCPro"])
+            # Allow the user to either download the CSV or send it directly to CINC
+            option = st.radio("Choose an action", ["Download CSV", "Send to CINC"])
             
             # -- Download CSV --
 
@@ -107,12 +107,12 @@ def main():
                     mime='text/csv',
                 )
                 
-            # -- Send to CINCPro --
+            # -- Send to CINC --
             
-            elif option == "Send to CINCPro" and st.session_state.get("authenticated"):
+            elif option == "Send to CINC" and st.session_state.get("authenticated"):
                 try:                    
-                    if st.button("Deliver Data to CINCPro"):
-                        deliverer = CINCProDeliverer(
+                    if st.button("Deliver Data to CINC"):
+                        deliverer = CINCDeliverer(
                             access_token=st.session_state["access_token"],
                             tags=tags,
                             add_zip_tags=add_zip_tags,
@@ -143,8 +143,8 @@ def main():
                 except Exception as e:
                     st.error(e)
                     
-            elif option == "Send to CINCPro":
-                st.warning("Please authenticate first to send data to CINCPro.")
+            elif option == "Send to CINC":
+                st.warning("Please authenticate first to send data to CINC.")
                 
         else:
             st.write(f"The uploaded file does not contain the required columns: {', '.join(missing_columns)}.")
