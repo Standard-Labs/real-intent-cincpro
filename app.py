@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
-
+from auth import authenticate, get_auth_url, reset_session
+from api import CINCDeliverer
+from utils import AuthError
 
 # Define global variables for column mappings
 COLUMN_MAPPINGS = {
@@ -17,28 +19,49 @@ COLUMN_MAPPINGS = {
     "zip_code": "Zip/Postal Code",
 }
 
-
+    
 def main():
-    st.title('Real Intent to CINCPro Converter')
+    st.title('Real Intent to CINC Converter')
 
-    st.info("""
-    Upload a CSV file. The app will convert your Real Intent CSV into a format that can be imported into CINCPro.
-    """)
+    st.info("""Upload a CSV file. The app will convert your Real Intent CSV into a format that can be imported into CINC or will send it directly to CINC if authenticated.""")
+
+    # -- Authentication --
+    
+    if "code" in st.query_params and "state" in st.query_params: 
+        try:
+            authenticate(st.query_params["code"], st.query_params["state"])      
+            st.query_params.clear()   
+        except AuthError as e:
+            st.warning(f"Authentication Error: {e.message}") 
+        except Exception as e:
+            st.error(f"Unexpected Error: {e}")
+            
+    if not st.session_state.get("authenticated"):
+        st.markdown(f"[Authenticate with CINC]({get_auth_url()})")
+    else:
+        st.success("You are authenticated with CINC.")
 
     uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
     
-    agent_assigned = st.text_input("(Optional) Enter an assigned agent.")
-    st.write("This will assign the lead to the selected agent.")
+    # -- Optional fields for CSV and API Delivery --
     
-    listing_agent = st.text_input("(Optional) Enter a listing agent.")
-    st.write("This will assign the lead to the selected listing agent.")
+    with st.expander("Agent and Partner Assignment"):
+        agent_assigned = st.text_input("(Optional) Enter an assigned agent.")
+        listing_agent = st.text_input("(Optional) Enter a listing agent.")
+        partner = st.text_input("(Optional) Enter a partner.")
 
-    partner = st.text_input("(Optional) Enter a partner.")
-    st.write("This will assign the lead to the selected partner.")
+    with st.expander("Pipeline (CSV only)"):
+        pipeline = st.text_input("(Optional) Enter a pipeline.")
+        st.write("This will set the lead’s pipeline stage. Note: this will not trigger any actions.")
+
+    with st.expander("Tags (API only)"):
+        tags_input = st.text_input("(Optional) Enter tag(s):", "")
+        st.write("These tags will be added to the lead in CINC. You can add multiple tags separated by commas.")
+        tags = [tag.strip() for tag in tags_input.split(",")] if tags_input else None
+        add_zip_tags = st.checkbox("Add Zip Tags", value=True)
+                
+    # -- File Upload and Processing --
     
-    pipeline = st.text_input("(Optional) Enter a pipeline.")
-    st.write("This will set the lead’s pipeline stage. Note: this will not trigger any actions.")
-
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         
@@ -49,13 +72,11 @@ def main():
 
             df_cincpro = df[list(COLUMN_MAPPINGS.keys())].rename(columns=COLUMN_MAPPINGS)
             
-            # add validation columns
-            df_cincpro["Valid Email"] = df_cincpro["Email"].apply(lambda x: "YES" if pd.notna(x) and x != '' else "")
+            # Add validation columns
             df_cincpro["Valid Cell Phone"] = df_cincpro[["Cell Phone", "Home Phone", "Work Phone"]].apply(lambda x: "YES" if x.notna().any() else "", axis=1)
 
-
             if 'insight' in df.columns:
-                df_cincpro['Custom Note'] = df['insight'].apply(lambda x: f"Insight: {x}")
+                df_cincpro['Insight'] = df['insight'].apply(lambda x: f"{x}")
                 
             if agent_assigned:
                 df_cincpro['Agent Assigned'] = agent_assigned
@@ -67,20 +88,64 @@ def main():
                 df_cincpro['Pipeline'] = pipeline
 
             df_cincpro['Source'] = 'Real Intent'
-            
 
             # Display the resulting dataframe
             st.write("Converted DataFrame:")
             st.write(df_cincpro)
+
+            # Allow the user to either download the CSV or send it directly to CINC
+            option = st.radio("Choose an action", ["Download CSV", "Send to CINC"])
             
-            # Download the converted dataframe as CSV
-            csv = df_cincpro.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="Download converted CSV",
-                data=csv,
-                file_name='converted_file.csv',
-                mime='text/csv',
-            )
+            # -- Download CSV --
+
+            if option == "Download CSV":
+                csv = df_cincpro.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="Download converted CSV",
+                    data=csv,
+                    file_name='converted_file.csv',
+                    mime='text/csv',
+                )
+                
+            # -- Send to CINC --
+            
+            elif option == "Send to CINC" and st.session_state.get("authenticated"):
+                try:                    
+                    if st.button("Deliver Data to CINC"):
+                        deliverer = CINCDeliverer(
+                            access_token=st.session_state["access_token"],
+                            tags=tags,
+                            add_zip_tags=add_zip_tags,
+                            primary_agent=agent_assigned,
+                            listing_agent=listing_agent,
+                            partner=partner,
+                            n_threads=5,
+                        )
+                    
+                        deliver_df = df.replace({float('nan'): None}, inplace=False)
+                        
+                        with st.spinner("Delivering leads..."):
+                            deliverer.deliver(deliver_df)
+                            failed_leads = deliverer.get_failure_leads()                     
+
+                            if failed_leads:
+                                st.error(f"{len(failed_leads)} leads failed to deliver.")
+                                
+                                with st.expander("Click to see failed lead details"):
+                                    for failed in failed_leads:
+                                        st.error(f"{failed['md5']}: {failed['error']}")  
+                            else:
+                                st.success("All leads delivered successfully!")
+                                
+                except AuthError as e:
+                    reset_session()
+                    st.warning(f"{e}")
+                except Exception as e:
+                    st.error(e)
+                    
+            elif option == "Send to CINC":
+                st.warning("Please authenticate first to send data to CINC.")
+                
         else:
             st.write(f"The uploaded file does not contain the required columns: {', '.join(missing_columns)}.")
 
