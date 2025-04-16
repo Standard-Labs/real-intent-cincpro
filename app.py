@@ -19,6 +19,9 @@ COLUMN_MAPPINGS = {
     "zip_code": "Zip/Postal Code",
 }
 
+@st.cache_data
+def load_file(file):
+    return pd.read_csv(file)
     
 def main():
     st.title('Real Intent to CINC Converter')
@@ -63,7 +66,7 @@ def main():
     # -- File Upload and Processing --
     
     if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
+        df = load_file(uploaded_file)
         
         # Check if required columns are in the dataframe
         missing_columns = [col for col in COLUMN_MAPPINGS.keys() if col not in df.columns]
