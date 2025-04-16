@@ -112,17 +112,19 @@ def main():
             elif option == "Send to CINC" and st.session_state.get("authenticated"):
                 try:                    
                     if st.button("Deliver Data to CINC"):
-                        deliverer = CINCDeliverer(
-                            access_token=st.session_state["access_token"],
-                            tags=tags,
-                            add_zip_tags=add_zip_tags,
-                            primary_agent=agent_assigned,
-                            listing_agent=listing_agent,
-                            partner=partner,
-                            n_threads=5,
-                        )
                     
-                        deliver_df = df.replace({float('nan'): None}, inplace=False)
+                        with st.spinner("Preparing leads for delivery..."):
+                            deliverer = CINCDeliverer(
+                                access_token=st.session_state["access_token"],
+                                tags=tags,
+                                add_zip_tags=add_zip_tags,
+                                primary_agent=agent_assigned,
+                                listing_agent=listing_agent,
+                                partner=partner,
+                                n_threads=5,
+                            )
+                        
+                            deliver_df = df.replace({float('nan'): None}, inplace=False)
                         
                         with st.spinner("Delivering leads..."):
                             deliverer.deliver(deliver_df)
