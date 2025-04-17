@@ -36,8 +36,10 @@ def main():
             st.query_params.clear()   
         except AuthError as e:
             st.warning(f"Authentication Error: {e.message}") 
+            st.query_params.clear()   
         except Exception as e:
             st.error(f"Unexpected Error: {e}")
+            st.query_params.clear()   
             
     if not st.session_state.get("authenticated"):
         st.markdown(f"[Authenticate with CINC]({get_auth_url()})")
