@@ -133,7 +133,7 @@ def main():
                         
                         with st.spinner("Delivering leads..."):
                             deliverer.deliver(deliver_df)
-                            failed_leads = deliverer.get_failure_leads()                     
+                            failed_leads = deliverer.get_failed_leads()                     
 
                             if failed_leads:
                                 st.error(f"{len(failed_leads)} leads failed to deliver.")

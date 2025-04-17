@@ -54,7 +54,7 @@ class CINCDeliverer():
         if not self._verify_api_credentials():
             raise AuthError("Could not verify credentials for CINC delivery. Please re-authenticate.")
     
-    def get_failure_leads(self) -> list[dict]:
+    def get_failed_leads(self) -> list[dict]:
         """
         Get the list of failed leads.
 
