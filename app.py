@@ -24,7 +24,7 @@ def load_file(file):
     return pd.read_csv(file)
     
 def main():
-    st.title('Real Intent to CINC Converter')
+    st.title('Real Intent to CINC Converter/Deliverer')
 
     st.info("""Upload a CSV file. The app will convert your Real Intent CSV into a format that can be imported into CINC or will send it directly to CINC if authenticated.""")
 
@@ -50,20 +50,20 @@ def main():
     
     # -- Optional fields for CSV and API Delivery --
     
-    # with st.expander("Agent and Partner Assignment"):
-    #     agent_assigned = st.text_input("(Optional) Enter an assigned agent.")
-    #     listing_agent = st.text_input("(Optional) Enter a listing agent.")
-    #     partner = st.text_input("(Optional) Enter a partner.")
+    with st.expander("Agent and Partner Assignment"):
+        agent_assigned = st.text_input("(Optional) Enter an assigned agent.")
+        listing_agent = st.text_input("(Optional) Enter a listing agent.")
+        partner = st.text_input("(Optional) Enter a partner.")
 
     with st.expander("Pipeline (CSV only)"):
         pipeline = st.text_input("(Optional) Enter a pipeline.")
         st.write("This will set the lead’s pipeline stage. Note: this will not trigger any actions.")
 
-    # with st.expander("Tags (API only)"):
-    #     tags_input = st.text_input("(Optional) Enter tag(s):", "")
-    #     st.write("These tags will be added to the lead in CINC. You can add multiple tags separated by commas.")
-    #     tags = [tag.strip() for tag in tags_input.split(",")] if tags_input else None
-    #     add_zip_tags = st.checkbox("Add Zip Tags", value=True)
+    with st.expander("Tags (API only)"):
+        tags_input = st.text_input("(Optional) Enter tag(s):", "")
+        st.write("These tags will be added to the lead in CINC. You can add multiple tags separated by commas.")
+        tags = [tag.strip() for tag in tags_input.split(",")] if tags_input else None
+        add_zip_tags = st.checkbox("Add Zip Tags", value=True)
                 
     # -- File Upload and Processing --
     
@@ -83,12 +83,12 @@ def main():
             if 'insight' in df.columns:
                 df_cincpro['Insight'] = df['insight'].apply(lambda x: f"{x}")
                 
-            # if agent_assigned:
-            #     df_cincpro['Agent Assigned'] = agent_assigned
-            # if listing_agent:
-            #     df_cincpro['Listing Agent'] = listing_agent
-            # if partner:
-            #     df_cincpro['Partner'] = partner
+            if agent_assigned:
+                df_cincpro['Agent Assigned'] = agent_assigned
+            if listing_agent:
+                df_cincpro['Listing Agent'] = listing_agent
+            if partner:
+                df_cincpro['Partner'] = partner
             if pipeline:
                 df_cincpro['Pipeline'] = pipeline
 
@@ -121,11 +121,11 @@ def main():
                         with st.spinner("Preparing leads for delivery..."):
                             deliverer = CINCDeliverer(
                                 access_token=st.session_state["access_token"],
-                                tags=None,
-                                add_zip_tags=False,
-                                primary_agent=None,
-                                listing_agent=None,
-                                partner=None,
+                                tags=tags,
+                                add_zip_tags=add_zip_tags,
+                                primary_agent=agent_assigned,
+                                listing_agent=listing_agent,
+                                partner=partner,
                                 n_threads=5,
                             )
                         
