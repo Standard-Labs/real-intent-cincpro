@@ -171,7 +171,6 @@ class CINCDeliverer():
         city: str | None = lead.get("city")
         state: str | None = lead.get("state")
         zip_code: str | None = str(lead.get("zip_code")) if lead.get("zip_code") else None
-        insight: str | None = lead.get("insight")
         
         print("trace", f"Preparing event data for MD5: {md5}, first_name: {first_name}, last_name: {last_name}")
 
@@ -184,8 +183,21 @@ class CINCDeliverer():
         if email:        
             contact_info["email"] = email
             contact_info["is_validated_email"] = True
-
-        phone_numbers: dict[str, str | None] = {"cell_phone": phone_1, "home_phone": phone_2, "work_phone": phone_3}
+        
+        def _clean_phone(value):
+            try:
+                return str(int(float(value)))
+            except (ValueError, TypeError):
+                return str(value).strip()
+            
+        # phones won't show up in CINC, if they aren't exactly 10 digits with no decimal point    
+        phone_numbers: dict[str, str | None] = {}
+        if phone_1:
+            phone_numbers["cell_phone"] = _clean_phone(phone_1)
+        if phone_2:
+            phone_numbers["home_phone"] = _clean_phone(phone_2)
+        if phone_3:
+            phone_numbers["work_phone"] = _clean_phone(phone_3)
         
         contact_info["phone_numbers"] = phone_numbers
             
@@ -197,13 +209,43 @@ class CINCDeliverer():
                 "postal_or_zip": zip_code
             }
         
-        # Add Notes (Insight)
+        # Add Notes
         notes: list[dict[str, str]] = []
+        
+        note_field_map = {
+            "insight": "AI-Enhanced Insight",
+            "phone_1_dnc": "Cell Phone DNC Status",
+            "phone_2_dnc": "Home Phone DNC Status",
+            "phone_3_dnc": "Work Phone DNC Status",
+            "email_2": "Secondary Email",
+            "email_3": "Alternative Email",
+            "age": "Age",
+            "gender": "Gender",
+            "head_of_household": "Head of Household",
+            "birth_month_and_year": "Birth Month and Year",
+            "credit_range": "Credit Range",
+            "household_income": "Household Income",
+            "household_net_worth": "Household Net Worth",
+            "home_owner_status": "Home Owner Status",
+            "median_home_value": "Median Home Value",
+            "occupation": "Occupation",
+            "education": "Education Level",
+            "marital_status": "Marital Status",
+            "n_household_children": "Number of Children",
+            "n_household_adults": "Number of Adults",
+            "investments": "Investments",
+            "investment_type": "Investment Type",  
+        }
+        
+        note_lines = []
+        for key, label in note_field_map.items():
+            value = lead.get(key)
+            if pd.notna(value) and value != "":
+                note_lines.append(f"{label}: {value}")
 
-        if (insight):
+        if note_lines:
             notes.append({
-                # "id": md5, was working before??
-                "content": f"Real Intent's Actionable Insight: {insight}",
+                "content": "\n".join(note_lines),
                 "category": "info",
                 "created_by": "Real Intent",
                 "created_date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
